@@ -74,46 +74,37 @@ public class MainActivity extends AppCompatActivity {
         // Create a Firebase database reference
         DatabaseReference databaseReference = FirebaseDatabase.getInstance().getReference("contacts");
 
-        // Process and upload contacts in batches
-        int batchSize = 10; // Set your desired batch size
-        int maxContactsToBackup = 1000; // Set the maximum number of contacts to backup
+        for (Contact contact : contacts) {
+            // Check if the contact key (ID) already exists in the database
+            Query query = databaseReference.orderByChild("id").equalTo(contact.getId());
 
-        for (int i = 0; i < Math.min(contacts.size(), maxContactsToBackup); i += batchSize) {
-            int endIndex = Math.min(i + batchSize, Math.min(contacts.size(), maxContactsToBackup));
-            List<Contact> batch = contacts.subList(i, endIndex);
+            query.addListenerForSingleValueEvent(new ValueEventListener() {
+                @Override
+                public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                    // If a contact with the same key does not exist, add it
+                    if (!dataSnapshot.exists()) {
+                        // Create a unique key for each contact
+                        String contactKey = databaseReference.push().getKey();
 
-            for (Contact contact : batch) {
-                // Check if the contact key (ID) already exists in the database
-                Query query = databaseReference.orderByChild("id").equalTo(contact.getId());
+                        // Create a JSON object with contact data
+                        Map<String, Object> contactData = new HashMap<>();
+                        contactData.put("id", contact.getId());
+                        contactData.put("name", contact.getName());
+                        contactData.put("phoneNumber", contact.getPhoneNumber());
 
-                query.addListenerForSingleValueEvent(new ValueEventListener() {
-                    @Override
-                    public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                        // If a contact with the same key does not exist, add it
-                        if (!dataSnapshot.exists()) {
-                            // Create a unique key for each contact
-                            String contactKey = databaseReference.push().getKey();
-
-                            // Create a JSON object with contact data
-                            Map<String, Object> contactData = new HashMap<>();
-                            contactData.put("id", contact.getId());
-                            contactData.put("name", contact.getName());
-                            contactData.put("phoneNumber", contact.getPhoneNumber());
-
-                            // Store the contact data under the unique key
-                            databaseReference.child(contactKey).setValue(contactData);
-                        }
+                        // Store the contact data under the unique key
+                        databaseReference.child(contactKey).setValue(contactData);
                     }
+                }
 
-                    @Override
-                    public void onCancelled(@NonNull DatabaseError databaseError) {
-                        // Handle errors here if needed
-                    }
-                });
-            }
+                @Override
+                public void onCancelled(@NonNull DatabaseError databaseError) {
+                    // Handle errors here if needed
+                }
+            });
         }
 
-        Toast.makeText(MainActivity.this, "Contacts backed up to Firebase (up to 1000 contacts).", Toast.LENGTH_SHORT).show();
+        Toast.makeText(MainActivity.this, "Contacts backed up to Firebase.", Toast.LENGTH_SHORT).show();
     }
 
     private List<Contact> getContacts() {
